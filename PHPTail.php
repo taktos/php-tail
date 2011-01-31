@@ -16,14 +16,21 @@ class PHPTail {
 	 */
 	private $updateTime;
 	/**
+	 * This variable holds the maximum amount of bytes this application can load into memory (in bytes).
+	 * @var string
+	 */
+	private $maxSizeToLoad;
+	/**
 	 * 
 	 * PHPTail constructor
 	 * @param string $log the location of the log file
 	 * @param integer $defaultUpdateTime The time between AJAX requests to the server. 
+	 * @param integer $maxSizeToLoad This variable holds the maximum amount of bytes this application can load into memory (in bytes). Default is 2 Megabyte = 2097152 byte
 	 */
-	public function __construct($log, $defaultUpdateTime = 2000) {
+	public function __construct($log, $defaultUpdateTime = 2000, $maxSizeToLoad = 2097152) {
 		$this->log = $log;
 		$this->updateTime = $defaultUpdateTime;
+		$this->maxSizeToLoad = $maxSizeToLoad;
 	}
 	/**
 	 * This function is in charge of retrieving the latest lines from the log file
@@ -43,6 +50,12 @@ class PHPTail {
 		 */
 		$fsize = filesize($this->log);
 		$maxLength = ($fsize - $lastFetchedSize);
+		/**
+		 * Verify that we don't load more data then allowed.
+		 */
+		if($maxLength > $this->maxSizeToLoad) {
+			return json_encode(array("size" => $fsize, "data" => array("ERROR: PHPTail attempted to load more (".round(($maxLength / 1048576), 2)."MB) then the maximum size (".round(($this->maxSizeToLoad / 1048576), 2)."MB) of bytes into memory. You should lower the defaultUpdateTime to prevent this from happening. ")));	
+		}
 		/**
 		 * Actually load the data
 		 */
