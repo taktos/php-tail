@@ -138,6 +138,7 @@ class PHPTail {
 						$( "#settings" ).dialog({
 							modal: true,
 							resizable: false,
+							draggable: false,
 							autoOpen: false,
 							width: 590,
 							height: 270,
@@ -194,21 +195,27 @@ class PHPTail {
 						$(window).scroll(function(){
 							documentHeight = $(document).height(); 
 							scrollPosition = $(window).height() + $(window).scrollTop(); 
-							if(documentHeight == scrollPosition) {
+							if(documentHeight <= scrollPosition) {
 								scroll = true;
 							}
 							else {
 								scroll = false; 
 							}
 						});
-						
-												
+						scrollToBottom();
+											
 					});
 					//This function scrolls to the bottom
 					function scrollToBottom() {
-						$("html, body").animate({ 
-							scrollTop: $(document).height() 
-						}, "fast");
+						$('.ui-widget-overlay').width($(document).width());
+					    $('.ui-widget-overlay').height($(document).height());
+
+						$("html, body").scrollTop($(document).height());
+						if($( "#settings" ).dialog("isOpen")) {
+							$('.ui-widget-overlay').width($(document).width());
+						    $('.ui-widget-overlay').height($(document).height());
+						    $( "#settings" ).dialog("option", "position", "center");
+						}
 					}
 					//This function queries the server for updates.
 					function updateLog() {
