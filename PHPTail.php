@@ -153,22 +153,24 @@ class PHPTail {
 								$("#invertspan").html("Inverted: " + (invert == 1 ? 'true' : 'false'));
 							}
 						});
+						//Close the settings dialog after a user hits enter in the textarea
 						$('#grep').keyup(function(e) {
 							if(e.keyCode == 13) {
 								$( "#settings" ).dialog('close');
 							}
-						});							
+						});		
+						//Focus on the textarea					
 						$("#grep").focus();
-
+						//Settings button into a nice looking button with a theme
 						$("#grepKeyword").button();
+						//Settings button opens the settings dialog
 						$("#grepKeyword").click(function(){
 							$( "#settings" ).dialog('open');
 							$("#grepKeyword").removeClass('ui-state-focus');
 						});
-						
-						
+						//Set up an interval for updating the log. Change updateTime in the PHPTail contstructor to change this
 						setInterval ( "updateLog()", <?php echo $this->updateTime; ?> );
-		
+						//Some window scroll event to keep the menu at the top
 						$(window).scroll(function(e) {
 						    if ($(window).scrollTop() > 0) { 
 						        $('.float').css({
@@ -182,12 +184,13 @@ class PHPTail {
 						        });
 						    }
 						});
-
+						//If window is resized should we scroll to the bottom?
 						$(window).resize(function(){
 							if(scroll) {
 								scrollToBottom();
 							}
 						});
+						//Handle if the window should be scrolled down or not
 						$(window).scroll(function(){
 							documentHeight = $(document).height(); 
 							scrollPosition = $(window).height() + $(window).scrollTop(); 
@@ -201,12 +204,13 @@ class PHPTail {
 						
 												
 					});
+					//This function scrolls to the bottom
 					function scrollToBottom() {
 						$("html, body").animate({ 
 							scrollTop: $(document).height() 
 						}, "fast");
 					}
-					
+					//This function queries the server for updates.
 					function updateLog() {
 						$.getJSON('Log.php?ajax=1&lastsize='+lastSize + '&grep='+grep + '&invert='+invert, function(data) {
 							lastSize = data.size;
