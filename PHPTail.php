@@ -221,7 +221,7 @@ class PHPTail {
 					}
 					//This function queries the server for updates.
 					function updateLog() {
-						$.getJSON('Log.php?ajax=1&lastsize='+lastSize + '&grep='+grep + '&invert='+invert, function(data) {
+						$.getJSON('?ajax=1&lastsize='+lastSize + '&grep='+grep + '&invert='+invert, function(data) {
 							lastSize = data.size;
 							$.each(data.data, function(key, value) { 
 								$("#results").append('' + value + '<br/>');
