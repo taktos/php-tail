@@ -111,7 +111,9 @@ class PHPTail {
 						text-align: left;
 					}
 					.results {
-						padding-bottom: 20px;
+						font-family: monospace;
+						padding-bottom: 10px;
+						white-space: pre;
 					}
 				</style>
 
