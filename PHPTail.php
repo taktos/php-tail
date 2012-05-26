@@ -54,7 +54,7 @@ class PHPTail {
 		 * Verify that we don't load more data then allowed.
 		 */
 		if($maxLength > $this->maxSizeToLoad) {
-			return json_encode(array("size" => $fsize, "data" => array("ERROR: PHPTail attempted to load more (".round(($maxLength / 1048576), 2)."MB) then the maximum size (".round(($this->maxSizeToLoad / 1048576), 2)."MB) of bytes into memory. You should lower the defaultUpdateTime to prevent this from happening. ")));	
+			$maxLength = ($this->maxSizeToLoad / 2)
 		}
 		/**
 		 * Actually load the data
@@ -112,6 +112,7 @@ class PHPTail {
 					}
 					.results {
 						font-family: monospace;
+						font-size: small;
 						padding-bottom: 10px;
 						white-space: pre;
 					}
