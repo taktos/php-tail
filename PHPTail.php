@@ -52,9 +52,10 @@ class PHPTail {
 		$maxLength = ($fsize - $lastFetchedSize);
 		/**
 		 * Verify that we don't load more data then allowed.
+		 * Set maxLength to half maxSizeToLoad when it was too large.
 		 */
 		if($maxLength > $this->maxSizeToLoad) {
-			$maxLength = ($this->maxSizeToLoad / 2)
+			$maxLength = ($this->maxSizeToLoad / 2);
 		}
 		/**
 		 * Actually load the data
@@ -88,7 +89,7 @@ class PHPTail {
 	 * This function will print out the required HTML/CSS/JS
 	 */
 	public function generateGUI() {
-		?>
+?>
 		<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN"
 	        "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
 		<html xmlns="http://www.w3.org/1999/xhtml">
@@ -124,7 +125,7 @@ class PHPTail {
 				<script type="text/javascript">
 					/* <![CDATA[ */
 					//Last know size of the file
-					lastSize = <?php echo filesize($this->log); ?>;
+					lastSize = 0;
 					//Grep keyword
 					grep = "";
 					//Should the Grep be inverted?
@@ -205,8 +206,8 @@ class PHPTail {
 								scroll = false; 
 							}
 						});
+						updateLog();
 						scrollToBottom();
-											
 					});
 					//This function scrolls to the bottom
 					function scrollToBottom() {
@@ -253,6 +254,7 @@ class PHPTail {
 				</div>
 			</body> 
 		</html> 
- 		<?php
+<?php
 	}
 }
+
