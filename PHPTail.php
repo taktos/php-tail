@@ -28,7 +28,7 @@ class PHPTail {
 	 * @param integer $maxSizeToLoad This variable holds the maximum amount of bytes this application can load into memory (in bytes). Default is 2 Megabyte = 2097152 byte
 	 */
 	public function __construct($log, $defaultUpdateTime = 2000, $maxSizeToLoad = 2097152) {
-		$this->log = $log;
+		$this->log = is_array($log) ? $log : array($log);
 		$this->updateTime = $defaultUpdateTime;
 		$this->maxSizeToLoad = $maxSizeToLoad;
 	}
@@ -38,7 +38,7 @@ class PHPTail {
 	 * @param string $grepKeyword The grep keyword. This will only return rows that contain this word
 	 * @return Returns the JSON representation of the latest file size and appended lines.
 	 */
-	public function getNewLines($lastFetchedSize, $grepKeyword, $invert) {
+	public function getNewLines($tab, $lastFetchedSize, $grepKeyword, $invert) {
 
 		/**
 		 * Clear the stat cache to get the latest results
@@ -48,7 +48,7 @@ class PHPTail {
 		 * Define how much we should load from the log file 
 		 * @var 
 		 */
-		$fsize = filesize($this->log);
+		$fsize = filesize($this->log[$tab]);
 		$maxLength = ($fsize - $lastFetchedSize);
 		/**
 		 * Verify that we don't load more data then allowed.
@@ -63,7 +63,7 @@ class PHPTail {
 		$data = array();
 		if($maxLength > 0) {
 			
-			$fp = fopen($this->log, 'r');
+			$fp = fopen($this->log[$tab], 'r');
 			fseek($fp, -$maxLength , SEEK_END); 
 			$data = explode("\n", fread($fp, $maxLength));
 			
@@ -103,12 +103,14 @@ class PHPTail {
 						font-size: 80%; 
 					}
 					.float {
+						width: 100%; 					
+					}
+					.header.float {
 						background: white; 
 						border-bottom: 1px solid black; 
 						padding: 10px 0 10px 0; 
 						margin: 0px;  
 						height: 30px;
-						width: 100%; 
 						text-align: left;
 					}
 					.results {
@@ -124,20 +126,21 @@ class PHPTail {
 				
 				<script type="text/javascript">
 					/* <![CDATA[ */
-					//Last know size of the file
-					lastSize = 0;
-					//Grep keyword
-					grep = "";
-					//Should the Grep be inverted?
-					invert = 0;
 					//Last known document height
 					documentHeight = 0; 
 					//Last known scroll position
 					scrollPosition = 0; 
 					//Should we scroll to the bottom?
 					scroll = true;
+					lastTab = window.location.hash != "" ? window.location.hash.substr(1) :  "<?php echo array_keys($this->log)[0];?>";
+					console.log(lastTab);
 					$(document).ready(function(){
 
+						$( "#tabs" ).tabs();
+						$( "#tabs" ).bind( "tabsselect", function(event, ui) {
+							lastTab = $(ui.tab).attr('hash').substr(1);
+							console.log(lastTab);
+						});
 						// Setup the settings dialog
 						$( "#settings" ).dialog({
 							modal: true,
@@ -152,10 +155,11 @@ class PHPTail {
 								}
 							},
 							close: function(event, ui) { 
-								grep = $("#grep").val();
-								invert = $('#invert input:radio:checked').val();
-								$("#grepspan").html("Grep keyword: \"" + grep + "\"");
-								$("#invertspan").html("Inverted: " + (invert == 1 ? 'true' : 'false'));
+								var tab = $('#'+lastTab);
+								tab.data('grep', $("#grep").val());
+								tab.data('invert', $('#invert input:radio:checked').val());
+								$(".grepspan", tab).html("Grep keyword: \"" + tab.data('grep') + "\"");
+								$(".invertspan", tab).html("Inverted: " + (tab.data('invert') == 1 ? 'true' : 'false'));
 							}
 						});
 						//Close the settings dialog after a user hits enter in the textarea
@@ -167,20 +171,25 @@ class PHPTail {
 						//Focus on the textarea					
 						$("#grep").focus();
 						//Settings button into a nice looking button with a theme
-						$("#grepKeyword").button();
+						$(".grepKeyword").button();
 						//Settings button opens the settings dialog
-						$("#grepKeyword").click(function(){
+						$(".grepKeyword").click(function(){
 							$( "#settings" ).dialog('open');
-							$("#grepKeyword").removeClass('ui-state-focus');
+							$(this).removeClass('ui-state-focus');
 						});
 						//Set up an interval for updating the log. Change updateTime in the PHPTail contstructor to change this
 						setInterval ( "updateLog()", <?php echo $this->updateTime; ?> );
 						//Some window scroll event to keep the menu at the top
 						$(window).scroll(function(e) {
 						    if ($(window).scrollTop() > 0) { 
-						        $('.float').css({
+						        $('.header.float').css({
 						            position: 'fixed',
-						            top: '0',
+						            top: '49px',
+						            left: 'auto'
+						        });
+						        $('#tabs ul').css({
+						            position: 'fixed',
+						            top: '0px',
 						            left: 'auto'
 						        });
 						    } else {
@@ -223,10 +232,11 @@ class PHPTail {
 					}
 					//This function queries the server for updates.
 					function updateLog() {
-						$.getJSON('?ajax=1&lastsize='+lastSize + '&grep='+grep + '&invert='+invert, function(data) {
-							lastSize = data.size;
+						var tab = $('#'+lastTab);
+						$.getJSON('?ajax=1&tab=' + lastTab + '&lastsize=' + tab.data('lastSize') + '&grep='+tab.data('grep') + '&invert='+tab.data('invert'), function(data) {
+							tab.data('lastSize',data.size);
 							$.each(data.data, function(key, value) { 
-								$("#results").append('' + value + '<br/>');
+								$(".results", tab).append('' + value + '<br/>');
 							});
 							if(scroll) {
 								scrollToBottom();
@@ -246,11 +256,21 @@ class PHPTail {
 						<input type="radio" value="0" id="invert2" name="invert" checked="checked" /><label for="invert2">No</label>
 					</div>
 				</div>
-				<div class="float">
-					<button id="grepKeyword">Settings</button>
-					<span>Tailing file: <?php echo $this->log; ?></span> | <span id="grepspan">Grep keyword: ""</span> | <span id="invertspan">Inverted: false</span>
-				</div>
-				<div id="results">
+				<div id="tabs">
+					<ul class="float">
+						<?php foreach ($this->log as $title => $file): ?>
+							<li><a href="#<?php echo $title;?>"><?php echo $title;?></a></li>
+						<?php endforeach;?>
+					</ul>
+					<?php foreach ($this->log as $title => $file): ?>
+					<div id="<?php echo $title;?>" data-lastSize="0" data-grep="" data-invert="0">
+						<div class="header float">
+							<button class="grepKeyword">Settings</button>
+							<span>Tailing file: <?php echo $file; ?></span> | <span class="grepspan">Grep keyword: ""</span> | <span class="invertspan">Inverted: false</span>
+						</div>
+						<div class="results"></div>
+					</div>
+					<?php endforeach;?>
 				</div>
 			</body> 
 		</html> 
