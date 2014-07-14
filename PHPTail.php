@@ -27,7 +27,7 @@ class PHPTail {
      * @param integer $maxSizeToLoad This variable holds the maximum amount of bytes this application can load into memory (in bytes). Default is 2 Megabyte = 2097152 byte
      */
     public function __construct($log, $defaultUpdateTime = 2000, $maxSizeToLoad = 2097152) {
-        $this->log = $log;
+        $this->log = is_array($log) ? $log : array($log);
         $this->updateTime = $defaultUpdateTime;
         $this->maxSizeToLoad = $maxSizeToLoad;
     }
@@ -37,7 +37,7 @@ class PHPTail {
      * @param string $grepKeyword The grep keyword. This will only return rows that contain this word
      * @return Returns the JSON representation of the latest file size and appended lines.
      */
-    public function getNewLines($lastFetchedSize, $grepKeyword, $invert) {
+    public function getNewLines($file, $lastFetchedSize, $grepKeyword, $invert) {
 
         /**
          * Clear the stat cache to get the latest results
@@ -47,7 +47,10 @@ class PHPTail {
          * Define how much we should load from the log file
          * @var
          */
-        $fsize = filesize($this->log);
+        if(empty($file)) {
+            $file = key(array_slice($this->log, 0, 1, true));
+        }
+        $fsize = filesize($this->log[$file]);
         $maxLength = ($fsize - $lastFetchedSize);
         /**
          * Verify that we don't load more data then allowed.
@@ -61,7 +64,7 @@ class PHPTail {
         $data = array();
         if($maxLength > 0) {
 
-            $fp = fopen($this->log, 'r');
+            $fp = fopen($this->log[$file], 'r');
             fseek($fp, -$maxLength , SEEK_END);
             $data = explode("\n", fread($fp, $maxLength));
 
@@ -81,7 +84,7 @@ class PHPTail {
         if(end($data) == "") {
             array_pop($data);
         }
-        return json_encode(array("size" => $fsize, "data" => $data));
+        return json_encode(array("size" => $fsize, "file" => $this->log[$file], "data" => $data));
     }
     /**
      * This function will print out the required HTML/CSS/JS
@@ -108,16 +111,16 @@ class PHPTail {
 <![endif]-->
 
 <style type="text/css">
-#grepKeyword, #settings { 
-    font-size: 80%; 
+#grepKeyword, #settings {
+    font-size: 80%;
 }
 .float {
-    background: white; 
-    border-bottom: 1px solid black; 
-    padding: 10px 0 10px 0; 
-    margin: 0px;  
+    background: white;
+    border-bottom: 1px solid black;
+    padding: 10px 0 10px 0;
+    margin: 0px;
     height: 30px;
-    width: 100%; 
+    width: 100%;
     text-align: left;
 }
 .contents {
@@ -148,6 +151,8 @@ class PHPTail {
     scrollPosition = 0;
     //Should we scroll to the bottom?
     scroll = true;
+    lastFile = window.location.hash != "" ? window.location.hash.substr(1) : "";
+    console.log(lastFile);
     $(document).ready(function() {
 
         // Setup the settings dialog
@@ -163,9 +168,14 @@ class PHPTail {
                     $(this).dialog("close");
                 }
             },
+            open : function(event, ui) {
+                scrollToBottom();
+            },
             close : function(event, ui) {
                 grep = $("#grep").val();
                 invert = $('#invert input:radio:checked').val();
+                $("#results").text("");
+                lastSize = 0;
                 $("#grepspan").html("Grep keyword: \"" + grep + "\"");
                 $("#invertspan").html("Inverted: " + (invert == 1 ? 'true' : 'false'));
             }
@@ -179,12 +189,18 @@ class PHPTail {
         //Focus on the textarea
         $("#grep").focus();
         //Settings button into a nice looking button with a theme
-        $("#grepKeyword").button();
         //Settings button opens the settings dialog
         $("#grepKeyword").click(function() {
             $("#settings").dialog('open');
             $("#grepKeyword").removeClass('ui-state-focus');
         });
+        $(".file").click(function(e) {
+            $("#results").text("");
+            lastSize = 0;
+console.log(e);
+            lastFile = $(e.target).text();
+        });
+
         //Set up an interval for updating the log. Change updateTime in the PHPTail contstructor to change this
         setInterval("updateLog()", <?php echo $this->updateTime; ?>);
         //Some window scroll event to keep the menu at the top
@@ -226,8 +242,9 @@ class PHPTail {
     }
     //This function queries the server for updates.
     function updateLog() {
-        $.getJSON('?ajax=1&lastsize=' + lastSize + '&grep=' + grep + '&invert=' + invert, function(data) {
+        $.getJSON('?ajax=1&file=' + lastFile + '&lastsize=' + lastSize + '&grep=' + grep + '&invert=' + invert, function(data) {
             lastSize = data.size;
+            $("#current").text(data.file);
             $.each(data.data, function(key, value) {
                 $("#results").append('' + value + '<br/>');
             });
@@ -250,28 +267,30 @@ class PHPTail {
                     <li class="dropdown">
                         <a href="#" class="dropdown-toggle" data-toggle="dropdown">Files<span class="caret"></span></a>
                         <ul class="dropdown-menu" role="menu">
-                            <li><a href="#">a</a></li>
+                            <?php foreach ($this->log as $title => $f): ?>
+                            <li><a class="file" href="#<?php echo $title;?>"><?php echo $title;?></a></li>
+                            <?php endforeach;?>
                         </ul>
                     </li>
+                    <li><a href="#" id="grepKeyword">Settings</a></li>
+                    <li><span class="navbar-text" id="grepspan"></span></li>
+                    <li><span class="navbar-text" id="invertspan"></span></li>
                 </ul>
+                <p class="navbar-text navbar-right" id="current"></p>
             </div>
         </div>
     </div>
-    <div id="settings" title="PHPTail settings" style="display: none;">
-        <p>Grep keyword (return results that contain this keyword)</p>
-        <input id="grep" type="text" value="" />
-        <p>Should the grep keyword be inverted? (Return results that do NOT contain the keyword)</p>
-        <div id="invert">
-            <input type="radio" value="1" id="invert1" name="invert" /><label for="invert1">Yes</label>
-            <input type="radio" value="0" id="invert2" name="invert" checked="checked" /><label for="invert2">No</label>
-        </div>
-    </div>
-    <div class="float">
-        <button id="grepKeyword">Settings</button>
-        <span>Tailing file: <?php echo $this->log; ?></span> | <span id="grepspan">Grep keyword: ""</span> | <span id="invertspan">Inverted: false</span>
-    </div>
     <div class="contents">
-    	<div id="results" class="results"></div>
+        <div id="results" class="results"></div>
+        <div id="settings" title="PHPTail settings">
+            <p>Grep keyword (return results that contain this keyword)</p>
+            <input id="grep" type="text" value="" />
+            <p>Should the grep keyword be inverted? (Return results that do NOT contain the keyword)</p>
+            <div id="invert">
+                <input type="radio" value="1" id="invert1" name="invert" /><label for="invert1">Yes</label>
+                <input type="radio" value="0" id="invert2" name="invert" checked="checked" /><label for="invert2">No</label>
+            </div>
+        </div>
     </div>
 <script src="//maxcdn.bootstrapcdn.com/bootstrap/3.2.0/js/bootstrap.min.js"></script>
 </body>
